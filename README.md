@@ -3,7 +3,9 @@
 **Ciencia de Datos Aplicada · ITBA**
 Gianluca Giannine Lizarraga · Timoteo Harrington · Lucas Kim
 
-Queremos estimar la probabilidad de que una persona no devuelva un préstamo (PD), usando solo lo que se sabe cuando lo pide. Con esa probabilidad armamos bandas de riesgo y estimamos cuánto se perdería. Usamos los datos históricos de Lending Club, una plataforma de préstamos entre personas de Estados Unidos.
+Queremos estimar la probabilidad de que una persona no devuelva un préstamo (PD), usando solo lo que se sabe cuando lo pide. Con esa probabilidad armamos bandas de riesgo, calculamos la prima de riesgo (cuánto se espera perder) y decidimos si aprobar el préstamo. Usamos los datos históricos de Lending Club, una plataforma de préstamos entre personas de Estados Unidos.
+
+**Probalo:** la interfaz para analistas está en _[link de Streamlit]_ y la API, con su documentación, en _[link de Render]/docs_.
 
 ## Estado del proyecto
 
@@ -11,19 +13,22 @@ Queremos estimar la probabilidad de que una persona no devuelva un préstamo (PD
 |---|---|---|
 | E01 — Propuesta | Problema, objetivos y alcance | ✅ Entregado |
 | E02 — Recopilación y preparación de datos | Datos, calidad, leakage, separación train/test, exploración, pérdida y transformaciones | ✅ Entregado |
-| E03 — Modelado | Regresión logística, Random Forest y LightGBM, validación por año, evaluación, bandas y modelo guardado | ✅ Este repo |
-| E04 — Despliegue y presentación | Prima de riesgo e informe final | Pendiente |
+| E03 — Modelado | Regresión logística, Random Forest y LightGBM, validación por año, evaluación, bandas y modelo guardado | ✅ Entregado |
+| E04 — Despliegue y presentación | Calibración, severidad por banda, prima, regla de decisión, API e interfaz | ✅ Este repo |
 
 ## Qué hay en cada carpeta
 
 ```
+├── api/             # API REST (FastAPI): recibe una solicitud y devuelve PD, banda, prima y decisión
+├── app/             # Interfaz para analistas (Streamlit); llama a la API
 ├── data/            # Datos (no se suben a GitHub; se descargan con el script)
 ├── datos_externos/  # Desempleo mensual por estado (BLS), sí está en el repo
 ├── figures/         # Gráficos que generan los notebooks
-├── modelos/         # Modelo final guardado (Entrega 03)
+├── modelos/         # Modelo guardado (E03) y parámetros de la prima (E04)
 ├── notebooks/
 │   ├── 02_recopilacion_preparacion_datos.ipynb   # Entrega 02
-│   └── 03_modelado.ipynb                         # Entrega 03
+│   ├── 03_modelado.ipynb                         # Entrega 03
+│   └── 04_pricing.ipynb                          # Entrega 04: calibración, severidad, prima y decisión
 ├── scripts/
 │   ├── download_data.py         # Descarga el dataset de Kaggle
 │   └── download_desempleo.py    # Vuelve a bajar el desempleo del BLS
@@ -32,8 +37,15 @@ Queremos estimar la probabilidad de que una persona no devuelva un préstamo (PD
 │   ├── features.py    # Clasifica las columnas, crea variables y calcula la pérdida
 │   ├── modelado.py    # Desempleo, modelos, validación por año, guardar/cargar el modelo
 │   ├── evaluacion.py  # Métricas (AUC, KS, calibración) y tablas por banda
-│   └── graficos.py    # Colores y estilo de los gráficos
-├── requirements.txt
+│   ├── graficos.py    # Colores y estilo de los gráficos
+│   ├── solicitud.py   # De una solicitud corta a las 54 variables del modelo (E04)
+│   ├── pricing.py     # Calibración, banda, severidad, prima y decisión (E04)
+│   └── evaluador.py   # Une modelo y parámetros; lo usan la API y los tests (E04)
+├── tests/             # Tests de persistencia, lógica de la prima y API
+├── render.yaml        # Despliegue de la API en Render
+├── requirements.txt            # Para los notebooks
+├── requirements-inference.txt  # Para cargar el modelo
+├── requirements-api.txt        # Para la API
 └── README.md
 ```
 
@@ -53,6 +65,61 @@ jupyter notebook notebooks/02_recopilacion_preparacion_datos.ipynb   # después,
 
 La primera vez tarda unos minutos y usa ~5 GB de memoria, porque lee el archivo completo. Después guarda una copia en `data/` y las siguientes veces es rápido.
 
+## Usar el modelo: API e interfaz (E04)
+
+```
+Analista ──> Interfaz (Streamlit) ──HTTP──> API (FastAPI) ──> evaluador ──> modelo_pd.joblib + modelo_pd.json
+```
+
+**Qué hace con una solicitud:**
+1. Arma las 54 variables del modelo con los datos principales (monto, ingreso, DTI, FICO, antigüedad, vivienda, destino y estado). Los datos del buró que no vengan se completan con la mediana de train.
+2. Calcula la PD con LightGBM y la **calibra** con un ajuste de intercepto (+0,098 en log-odds), estimado en validación.
+3. Ubica el préstamo en una de las **7 bandas** de riesgo.
+4. Calcula la **prima = PD calibrada × severidad de la banda** (de 45,9% en la banda 1 a 60,2% en la 7). Es la pérdida esperada de toda la vida del préstamo, como % del monto.
+5. **Decide:** aprueba las bandas 1 a 4, manda a revisión la 5 y rechaza la 6 y la 7.
+
+**Endpoints de la API** (documentación interactiva en `/docs`):
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| GET | `/salud` | Estado del servicio |
+| GET | `/modelo` | Métricas, bandas con su severidad y decisión, calibración |
+| GET | `/opciones` | Valores válidos para armar un formulario |
+| POST | `/evaluar` | Evalúa una solicitud |
+| POST | `/evaluar/lote` | Evalúa hasta 1000 solicitudes |
+
+Ejemplo:
+
+```bash
+curl -X POST https://<api>/evaluar -H "Content-Type: application/json" -d '{
+  "monto": 15000, "ingreso_anual": 65000, "dti": 19, "fico": 695,
+  "antiguedad_crediticia_anios": 12, "antiguedad_laboral_anios": 4,
+  "vivienda": "RENT", "proposito": "debt_consolidation", "estado": "CA"}'
+```
+
+Devuelve, entre otros, `"pd": 0.117`, `"banda": "2"`, `"severidad": 0.483`, `"prima": 0.0565`, `"perdida_esperada_usd": 847.74` y `"decision": "aprobar"`. Si un dato es inválido responde 422 con el campo y el motivo en castellano (por ejemplo, `fico: Tiene que ser menor o igual a 850`).
+
+**Correr en local** (dos terminales):
+
+```bash
+pip install -r requirements-api.txt
+uvicorn api.main:app --reload                    # API en http://localhost:8000/docs
+
+pip install -r app/requirements.txt
+streamlit run app/streamlit_app.py               # interfaz en http://localhost:8501
+```
+
+**Desplegar:**
+- **API en Render:** en render.com, *New > Blueprint* y elegir este repo. Toma la configuración de `render.yaml`. En el plan gratis el servicio se duerme a los 15 minutos sin uso y tarda ~1 minuto en despertar: abrir `/salud` antes de la demo.
+- **Interfaz en Streamlit Community Cloud:** en share.streamlit.io, *Create app*, este repo, archivo `app/streamlit_app.py`. En *Advanced settings > Secrets* poner `API_URL = "https://<url-de-render>"`.
+
+**Tests** (no necesitan el dataset):
+
+```bash
+pip install -r requirements-api.txt
+python -m unittest discover -s tests -v
+```
+
 ## Datos
 
 [*Lending Club Loan Data*](https://www.kaggle.com/datasets/wordsforthewise/lending-club) en Kaggle: todos los préstamos que dio Lending Club entre 2007 y 2018 (2,26 millones de préstamos, 151 columnas).
@@ -70,6 +137,9 @@ La primera vez tarda unos minutos y usa ~5 GB de memoria, porque lee el archivo 
 9. **Desempleo por estado (BLS):** su aporte es despreciable: quitarlo reduce el AUC de validación de 0,6837 a 0,6836. Quedó afuera para simplificar, no porque perjudique el modelo.
 10. **Bandas:** 7 bandas con cortes definidos en train; en test el default sube de 4% (banda 1) a 57% (banda 7).
 11. **Modelo guardado:** `modelos/modelo_pd.joblib` (se carga con `src.modelado.cargar_modelo()`) y `modelos/modelo_pd.json` con los cortes, la severidad y las métricas.
+12. **Calibración (E04):** la PD de E03 quedaba un punto abajo del default real en test (13,9% contra 14,8%). Con un ajuste de intercepto estimado en el último año de validación, la PD media pasa a 15,0%. El AUC no cambia.
+13. **Prima (E04):** PD calibrada × severidad de la banda. En test cubre el 99% de la pérdida real (la versión de E03, el 92%), y entre 94% y 117% en cada banda.
+14. **Decisión (E04):** aprobando las bandas 1 a 4 (94% de los préstamos), la pérdida de los aprobados baja de 7,8% a 6,9% del monto. Con la misma cantidad de aprobados, la nota de Lending Club llega a 7,0%.
 
 ## Verificación sin entrenar
 

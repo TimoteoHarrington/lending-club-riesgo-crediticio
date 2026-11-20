@@ -1,0 +1,12 @@
+# Despliegue de la API en Render (plan gratis). En render.com: New > Blueprint > este repo.
+services:
+  - type: web
+    name: lending-club-riesgo-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-api.txt
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /salud
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
