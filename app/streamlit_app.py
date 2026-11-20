@@ -10,6 +10,7 @@ Streamlit). Por defecto, http://localhost:8000.
 import io
 import json
 import os
+from pathlib import Path
 
 import pandas as pd
 import requests
@@ -100,9 +101,38 @@ def usd(x):
 # Encabezado y estado de la API
 # ---------------------------------------------------------------------------
 
-st.title("Evaluador de riesgo crediticio")
-st.caption("Probabilidad de default, banda de riesgo, prima y decisión para préstamos personales a 36 meses. "
-           "Modelo LightGBM entrenado con datos de Lending Club (2007-2015).")
+REPO = "https://github.com/lucaskim26/lending-club-riesgo-crediticio"
+PRESENTACION = Path(__file__).parent / "presentacion.html"
+
+
+@st.cache_data(show_spinner=False)
+def presentacion_html():
+    return PRESENTACION.read_text(encoding="utf-8")
+
+
+st.title("Riesgo de default crediticio · Lending Club")
+st.caption("Ciencia de Datos Aplicada · ITBA · Entrega 04 · Gianluca Giannine Lizarraga, Timoteo Harrington y Lucas Kim. "
+           "Probabilidad de default, banda de riesgo, prima y decisión para préstamos personales a 36 meses.")
+c1, c2, c3, _ = st.columns([1, 1, 1, 2])
+c1.link_button("Código en GitHub", REPO, use_container_width=True)
+c2.link_button("Notebook 04 (prima)", f"{REPO}/blob/main/notebooks/04_pricing.ipynb", use_container_width=True)
+c3.link_button("Docs de la API", f"{API_URL}/docs", use_container_width=True)
+
+tab_pres, tab_uno, tab_lote, tab_modelo = st.tabs(
+    ["Presentación", "Evaluar una solicitud", "Evaluar un lote (CSV)", "Cómo funciona"])
+
+# ---------------------------------------------------------------------------
+# Presentación (no depende de la API)
+# ---------------------------------------------------------------------------
+
+with tab_pres:
+    deck = presentacion_html()
+    st.components.v1.html(deck, height=720, scrolling=False)
+    c1, c2 = st.columns([3, 1])
+    c1.caption("Hacé clic en la presentación y usá las flechas (o clic a los lados) para avanzar. "
+               "N muestra el guion, O el índice y F la pantalla completa.")
+    c2.download_button("Descargar presentación (HTML)", deck.encode("utf-8"), "presentacion_lending_club_e04.html",
+                       "text/html", use_container_width=True)
 
 with st.spinner("Conectando con la API (si estaba dormida puede tardar un minuto)..."):
     modelo, error_modelo = info_modelo()
@@ -121,11 +151,17 @@ with st.sidebar:
         st.markdown(f"[Documentación de la API]({API_URL}/docs)")
         if not modelo.get("parametros_completos"):
             st.warning("La API todavía usa la severidad única y no calibra la PD.")
+    st.divider()
+    st.subheader("Proyecto")
+    st.markdown(f"- [Repositorio en GitHub]({REPO})\n"
+                f"- [Notebook 04: calibración y prima]({REPO}/blob/main/notebooks/04_pricing.ipynb)\n"
+                f"- [Notebook 03: modelado]({REPO}/blob/main/notebooks/03_modelado.ipynb)\n"
+                f"- [Notebook 02: datos]({REPO}/blob/main/notebooks/02_recopilacion_preparacion_datos.ipynb)")
 
 if error_modelo or error_opc:
+    for tab in (tab_uno, tab_lote, tab_modelo):
+        tab.error("No se pudo conectar con la API. Probá de nuevo en un minuto con el botón Reintentar de la barra lateral.")
     st.stop()
-
-tab_uno, tab_lote, tab_modelo = st.tabs(["Evaluar una solicitud", "Evaluar un lote (CSV)", "Cómo funciona"])
 
 # ---------------------------------------------------------------------------
 # Una solicitud
