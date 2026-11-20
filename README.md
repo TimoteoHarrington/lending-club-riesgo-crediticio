@@ -5,7 +5,11 @@ Gianluca Giannine Lizarraga · Timoteo Harrington · Lucas Kim
 
 Queremos estimar la probabilidad de que una persona no devuelva un préstamo (PD), usando solo lo que se sabe cuando lo pide. Con esa probabilidad armamos bandas de riesgo, calculamos la prima de riesgo (cuánto se espera perder) y decidimos si aprobar el préstamo. Usamos los datos históricos de Lending Club, una plataforma de préstamos entre personas de Estados Unidos.
 
-**Probalo:** la interfaz para analistas está en _[link de Streamlit]_ y la API, con su documentación, en _[link de Render]/docs_.
+**Probalo:**
+- Interfaz para analistas: https://lending-club-riesgo-crediticio-fohwmztcbqtpcespptqrom.streamlit.app/
+- API: https://lending-club-riesgo-api.onrender.com (documentación en [`/docs`](https://lending-club-riesgo-api.onrender.com/docs))
+
+La API usa el plan gratis de Render: si nadie la usó en los últimos 15 minutos, el primer pedido tarda cerca de un minuto.
 
 ## Estado del proyecto
 
@@ -111,7 +115,7 @@ streamlit run app/streamlit_app.py               # interfaz en http://localhost:
 
 **Desplegar:**
 - **API en Render:** en render.com, *New > Blueprint* y elegir este repo. Toma la configuración de `render.yaml`. En el plan gratis el servicio se duerme a los 15 minutos sin uso y tarda ~1 minuto en despertar: abrir `/salud` antes de la demo.
-- **Interfaz en Streamlit Community Cloud:** en share.streamlit.io, *Create app*, este repo, archivo `app/streamlit_app.py`. En *Advanced settings > Secrets* poner `API_URL = "https://<url-de-render>"`.
+- **Interfaz en Streamlit Community Cloud:** en share.streamlit.io, *Create app*, este repo, archivo `app/streamlit_app.py`. En *Advanced settings > Secrets* poner `API_URL = "https://<url-de-render>"`. Streamlit pide ser administrador del repo: si no sos el dueño, publicala desde un fork.
 
 **Tests** (no necesitan el dataset):
 
