@@ -112,5 +112,104 @@
     "scikit-learn": "1.9.1",
     "lightgbm": "4.7.0",
     "pandas": "2.2.3"
+  },
+  "calibracion": {
+    "metodo": "ajuste de intercepto (log-odds)",
+    "intercepto": 0.09775755344249389,
+    "estimado_con": "validación: préstamos de ene-ago 2015 con PD del corte 2015"
+  },
+  "severidad_por_banda": {
+    "1": 0.4590043945882408,
+    "2": 0.4831234372618836,
+    "3": 0.5139426797582917,
+    "4": 0.5367230836842269,
+    "5": 0.5585920209953292,
+    "6": 0.570793641654095,
+    "7": 0.6018345577151298
+  },
+  "regla_decision": {
+    "aprobar": [
+      "1",
+      "2",
+      "3",
+      "4"
+    ],
+    "revisar": [
+      "5"
+    ],
+    "rechazar": [
+      "6",
+      "7"
+    ]
+  },
+  "default_por_banda": {
+    "1": 0.041819386177964234,
+    "2": 0.10164146995550055,
+    "3": 0.1761971338692765,
+    "4": 0.2591323462856404,
+    "5": 0.3521019592923721,
+    "6": 0.45753899480069327,
+    "7": 0.5736434108527132
+  },
+  "valores_por_defecto": {
+    "loan_amnt": 10000.0,
+    "delinq_2yrs": 0.0,
+    "inq_last_6mths": 0.0,
+    "open_acc": 10.0,
+    "pub_rec": 0.0,
+    "revol_bal": 10768.0,
+    "revol_util": 55.1,
+    "total_acc": 23.0,
+    "pub_rec_bankruptcies": 0.0,
+    "tax_liens": 0.0,
+    "collections_12_mths_ex_med": 0.0,
+    "dti": 17.2,
+    "fico_promedio": 687.0,
+    "log_annual_inc": 11.002099841204238,
+    "antiguedad_crediticia_anios": 14.666666666666666,
+    "emp_length_anios": 6.0,
+    "prestamo_sobre_ingreso": 0.1834375,
+    "revol_bal_sobre_ingreso": 0.185375,
+    "tot_coll_amt": 0.0,
+    "total_rev_hi_lim": 21600.0,
+    "acc_open_past_24mths": 4.0,
+    "avg_cur_bal": 6215.0,
+    "bc_open_to_buy": 3708.0,
+    "bc_util": 67.3,
+    "mo_sin_old_il_acct": 128.0,
+    "mo_sin_old_rev_tl_op": 163.0,
+    "mo_sin_rcnt_rev_tl_op": 8.0,
+    "mo_sin_rcnt_tl": 6.0,
+    "mort_acc": 1.0,
+    "mths_since_recent_bc": 14.0,
+    "mths_since_recent_inq": 5.0,
+    "num_accts_ever_120_pd": 0.0,
+    "num_actv_bc_tl": 3.0,
+    "num_actv_rev_tl": 5.0,
+    "num_bc_sats": 4.0,
+    "num_bc_tl": 8.0,
+    "num_il_tl": 6.0,
+    "num_op_rev_tl": 7.0,
+    "num_rev_accts": 13.0,
+    "num_tl_90g_dpd_24m": 0.0,
+    "num_tl_op_past_12m": 2.0,
+    "pct_tl_nvr_dlq": 98.0,
+    "percent_bc_gt_75": 50.0,
+    "tot_hi_cred_lim": 91664.0,
+    "total_bal_ex_mort": 33490.5,
+    "total_bc_limit": 13300.0,
+    "total_il_high_credit_limit": 27563.0
+  },
+  "metricas_test_calibrado": {
+    "roc_auc": 0.7044053781728361,
+    "pr_auc": 0.28649900130558215,
+    "ks": 0.2966252109682881,
+    "brier": 0.11755926699576566,
+    "pd_media": 0.14984737638001816,
+    "default_observado": 0.14830915621064417
+  },
+  "prima_test": {
+    "perdida_esperada_media": 0.07735178925325772,
+    "perdida_observada_media": 0.07791593981847797
   }
 }

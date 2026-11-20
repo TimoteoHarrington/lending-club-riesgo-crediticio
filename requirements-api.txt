@@ -1,0 +1,6 @@
+# API (Render). Mismas versiones del modelo guardado que requirements-inference.txt
+-r requirements-inference.txt
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+pydantic==2.11.4
+httpx==0.28.1  # solo para correr los tests de la API
