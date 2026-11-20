@@ -7,6 +7,7 @@ Correr en local (con la API levantada en otra terminal):
 La dirección de la API se toma de API_URL (variable de entorno o secrets de
 Streamlit). Por defecto, http://localhost:8000.
 """
+import base64
 import io
 import json
 import os
@@ -110,22 +111,57 @@ def presentacion_html():
     return PRESENTACION.read_text(encoding="utf-8")
 
 
-st.title("Riesgo de default crediticio · Lending Club")
-st.caption("Ciencia de Datos Aplicada · ITBA · Entrega 04 · Gianluca Giannine Lizarraga, Timoteo Harrington y Lucas Kim. "
-           "Probabilidad de default, banda de riesgo, prima y decisión para préstamos personales a 36 meses.")
+ASSETS = Path(__file__).parent / "assets"
+
+
+@st.cache_data(show_spinner=False)
+def logo(nombre):
+    return base64.b64encode((ASSETS / nombre).read_bytes()).decode()
+
+
+st.markdown(f"""
+<div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin:-1.5rem 0 1.2rem">
+  <img src="data:image/png;base64,{logo('logo_itba.png')}" alt="ITBA" style="height:64px;border-radius:6px">
+  <img src="data:image/png;base64,{logo('logo_lendingclub.png')}" alt="Lending Club" style="height:40px">
+  <span style="margin-left:auto;background:#E3EEFC;color:#287AE6;font-weight:700;font-size:14px;
+        padding:6px 14px;border-radius:999px">Entrega final · E04</span>
+</div>""", unsafe_allow_html=True)
+
+st.title("Evaluador de riesgo crediticio")
+st.markdown(
+    "**Entrega final de Ciencia de Datos Aplicada (ITBA)** · Gianluca Giannine Lizarraga, Timoteo Harrington y Lucas Kim  \n"
+    "Un modelo de machine learning (LightGBM), entrenado con 618 mil préstamos de Lending Club, estima la probabilidad "
+    "de que una solicitud de préstamo no se pague. Con eso calcula la **prima de riesgo** y propone una **decisión**: "
+    "aprobar, revisar o rechazar.")
+
+PASOS_HTML = "".join(
+    f"<div style='flex:1;min-width:200px;background:#F1F5FA;border-radius:10px;padding:14px 18px'>"
+    f"<div style='color:#E96732;font-weight:800;font-size:22px'>{n}</div>"
+    f"<div style='font-weight:700;color:#172B4D'>{t}</div>"
+    f"<div style='color:#5C6F87;font-size:14px'>{d}</div></div>"
+    for n, t, d in [
+        ("1", "Cargá una solicitud", "Completá el formulario o elegí uno de los ejemplos (bajo, medio o alto riesgo)."),
+        ("2", "El modelo la evalúa", "Estima la probabilidad de default (PD) y ubica el préstamo en una de 7 bandas de riesgo."),
+        ("3", "Mirá el resultado", "La prima (cuánto se espera perder) y la decisión, explicadas en criollo."),
+    ])
+st.markdown(f"<div style='display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 14px'>{PASOS_HTML}</div>",
+            unsafe_allow_html=True)
+
 c1, c2, c3, _ = st.columns([1, 1, 1, 2])
 c1.link_button("Código en GitHub", REPO, use_container_width=True)
 c2.link_button("Notebook 04 (prima)", f"{REPO}/blob/main/notebooks/04_pricing.ipynb", use_container_width=True)
 c3.link_button("Docs de la API", f"{API_URL}/docs", use_container_width=True)
 
-tab_pres, tab_uno, tab_lote, tab_modelo = st.tabs(
-    ["Presentación", "Evaluar una solicitud", "Evaluar un lote (CSV)", "Cómo funciona"])
+tab_uno, tab_lote, tab_modelo, tab_pres = st.tabs(
+    ["Evaluar una solicitud", "Evaluar un lote (CSV)", "Cómo funciona", "Presentación de la entrega"])
 
 # ---------------------------------------------------------------------------
 # Presentación (no depende de la API)
 # ---------------------------------------------------------------------------
 
 with tab_pres:
+    st.markdown("La presentación de la entrega final: el problema, los datos, el modelo, de la PD a la decisión, "
+                "el despliegue y la reflexión.")
     deck = presentacion_html()
     st.components.v1.html(deck, height=720, scrolling=False)
     c1, c2 = st.columns([3, 1])
@@ -153,6 +189,8 @@ with st.sidebar:
             st.warning("La API todavía usa la severidad única y no calibra la PD.")
     st.divider()
     st.subheader("Proyecto")
+    st.caption("Entrega final (E04) de Ciencia de Datos Aplicada, ITBA 2026. "
+               "Datos: préstamos históricos de Lending Club (Kaggle).")
     st.markdown(f"- [Repositorio en GitHub]({REPO})\n"
                 f"- [Notebook 04: calibración y prima]({REPO}/blob/main/notebooks/04_pricing.ipynb)\n"
                 f"- [Notebook 03: modelado]({REPO}/blob/main/notebooks/03_modelado.ipynb)\n"
@@ -168,6 +206,8 @@ if error_modelo or error_opc:
 # ---------------------------------------------------------------------------
 
 with tab_uno:
+    st.markdown("Elegí un ejemplo o completá los datos de la persona que pide el préstamo y tocá **Evaluar solicitud**. "
+                "Los datos principales son obligatorios; los del buró de crédito son opcionales.")
     perfil = st.radio("Cargar un ejemplo", ["Personalizado", *PERFILES], horizontal=True,
                       help="Completa el formulario con un perfil de ejemplo. Después se puede cambiar cualquier dato.")
     base = PERFILES.get(perfil, PERFILES["Riesgo medio"])
@@ -307,22 +347,37 @@ with tab_lote:
 # ---------------------------------------------------------------------------
 
 with tab_modelo:
+    st.markdown("#### El problema")
     st.markdown(
-        "1. **Solicitud:** los datos principales y, si se tienen, los del buró. Lo que falta se completa con la mediana de train.\n"
-        "2. **PD:** el modelo LightGBM estima la probabilidad de default y se calibra con un ajuste de intercepto, "
-        "para que el promedio coincida con el default real.\n"
-        "3. **Banda:** la PD ubica al préstamo en una de 7 bandas de riesgo.\n"
-        "4. **Prima:** PD × severidad de la banda (cuánto se pierde del monto si no paga).\n"
-        "5. **Decisión:** según la banda, se aprueba, se manda a revisión o se rechaza.")
+        "Lending Club presta plata entre personas. De los préstamos a 36 meses, cerca del **15% no se paga**, y cuando "
+        "eso pasa se pierde en promedio la mitad de lo prestado. La pregunta es: **¿qué tan probable es que esta "
+        "solicitud no se pague, cuánto habría que cobrarle por ese riesgo y conviene aprobarla?**")
+
+    st.markdown("#### Qué hace el sistema con cada solicitud")
+    st.markdown(
+        "1. **Arma los datos.** Toma los datos principales y, si están, los del buró. Lo que falta se completa con "
+        "el valor típico (mediana) de los préstamos de entrenamiento.\n"
+        "2. **Estima la PD.** El modelo LightGBM calcula la probabilidad de default y la **calibra** (ajuste de "
+        "intercepto) para que, en promedio, coincida con el default real.\n"
+        "3. **Asigna la banda.** La PD ubica al préstamo en una de **7 bandas de riesgo**.\n"
+        "4. **Calcula la prima.** **Prima = PD × severidad de la banda**: la pérdida esperada de toda la vida del "
+        "préstamo, como % del monto.\n"
+        "5. **Decide.** Bandas 1 a 4: aprobar. Banda 5: revisar. Bandas 6 y 7: rechazar.")
+
+    st.markdown("#### Qué tan bien funciona (préstamos de test que el modelo nunca vio)")
     met = modelo.get("metricas_test", {})
     cal = modelo.get("metricas_test_calibrado") or met
     if met:
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("ROC-AUC en test", f"{met['roc_auc']:.3f}".replace(".", ","),
+        c1.metric("ROC-AUC", f"{met['roc_auc']:.3f}".replace(".", ","),
                   help="Qué tan bien ordena el riesgo: 0,5 es azar y 1 es perfecto. La nota de Lending Club logra 0,683.")
-        c2.metric("KS en test", f"{met['ks']:.3f}".replace(".", ","))
-        c3.metric("PD media en test", pct(cal["pd_media"]), help="Después de calibrar.")
-        c4.metric("Default real en test", pct(cal["default_observado"]))
+        c2.metric("Nota de Lending Club", "0,683", help="ROC-AUC de sub_grade, la calificación que usaba Lending Club, en los mismos préstamos.")
+        c3.metric("PD media (calibrada)", pct(cal["pd_media"]))
+        c4.metric("Default real", pct(cal["default_observado"]))
+        st.caption("La prima cubre el 99% de la pérdida real de test. Con la regla de decisión, la pérdida de los "
+                   "préstamos aprobados baja de 7,8% a 6,9% del monto.")
+
+    st.markdown("#### Las 7 bandas de riesgo")
     bandas = pd.DataFrame(modelo["bandas"])
     vista = pd.DataFrame({
         "Banda": bandas["banda"],
@@ -331,3 +386,26 @@ with tab_modelo:
         "Severidad": bandas["severidad"].map(lambda s: pct(s, 1)),
         "Decisión": bandas["decision"].map(lambda d: DECISION[d][0])})
     st.dataframe(vista, use_container_width=True, hide_index=True)
+
+    with st.expander("Glosario"):
+        st.markdown(
+            "- **PD (probabilidad de default):** la chance de que el préstamo no se devuelva en los 36 meses.\n"
+            "- **Calibración:** ajuste para que la PD promedio coincida con el default real, sin cambiar el orden.\n"
+            "- **Banda de riesgo:** grupo de préstamos con PD parecida, de 1 (más seguro) a 7 (más riesgoso).\n"
+            "- **Severidad:** qué parte del monto se pierde si el préstamo no se paga.\n"
+            "- **Prima de riesgo:** PD × severidad. Lo que hay que cobrar para cubrir la pérdida esperada.\n"
+            "- **ROC-AUC:** qué tan bien ordena el modelo a los que pagan y a los que no. 0,5 es azar y 1 es perfecto.\n"
+            "- **API:** el servicio que recibe los datos de una solicitud y devuelve el resultado. Esta página la usa por detrás.")
+    with st.expander("Límites"):
+        st.markdown(
+            "- La prima es la pérdida esperada de toda la vida del préstamo, no una tasa anual.\n"
+            "- El modelo aprendió de préstamos que Lending Club ya había aprobado: no sabe cómo se comportan los rechazados.\n"
+            "- Si cambia el ciclo económico, hay que volver a calibrar con datos recientes.\n"
+            "- Cuando faltan datos del buró se usan valores típicos: el resultado es razonable, pero menos preciso.")
+    st.markdown("#### Las cuatro entregas")
+    st.markdown(
+        "| Entrega | Qué hicimos |\n|---|---|\n"
+        "| E01 · Propuesta | Problema, objetivos y KPIs |\n"
+        "| E02 · Datos | Limpieza, leakage, split temporal y variables (618 mil préstamos, 54 variables) |\n"
+        "| E03 · Modelado | Logística, Random Forest y LightGBM con validación por año. Ganó LightGBM |\n"
+        f"| **E04 · Despliegue** | Calibración, prima, regla de decisión, [API]({API_URL}/docs) y esta página |")
