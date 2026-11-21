@@ -276,38 +276,25 @@ body.notes-on .stage{bottom:214px}
   <button type="button" id="bPrev" aria-label="Slide anterior">←</button>
   <span id="count" class="cnt" aria-live="polite">1 / 11</span>
   <button type="button" id="bNext" aria-label="Slide siguiente">→</button>
-  <button type="button" id="bNotes" aria-pressed="false">Guion (N)</button>
   <button type="button" id="bGrid" aria-pressed="false">Índice (O)</button>
   <button type="button" id="bFull">Pantalla completa (F)</button>
   <a href="https://github.com/lucaskim26/lending-club-riesgo-crediticio" target="_blank" rel="noopener">GitHub ↗</a>
 </div>
-<aside class="notes" id="notes" aria-label="Guion" hidden>
-  <div class="nt-h"><b id="ntSpk"></b><span id="ntTime"></span></div>
-  <p id="ntText"></p><p id="ntInd"></p>
-</aside>
 <div class="grid" id="grid" hidden aria-label="Índice de slides"></div>
-<script>window.NOTES=[{"n": 1, "speaker": "Lucas Kim", "secs": 15, "words": 31, "text": "Hola, somos Lucas, Gianluca y Timoteo. Les vamos a mostrar cómo terminamos el proyecto: un sistema que evalúa una solicitud de préstamo, calcula la prima de riesgo y decide si aprobarla.", "ind": "Mirar al público. El gráfico de la derecha anticipa las bandas."}, {"n": 2, "speaker": "Lucas Kim", "secs": 35, "words": 71, "text": "Lending Club presta plata entre personas. De los préstamos a tres años, casi el 15 por ciento no se pagó, y cuando alguien no paga se pierde, en promedio, la mitad de lo prestado.\n\nNuestro objetivo fue estimar para cada solicitud la probabilidad de que no se pague, la PD, cobrar una prima acorde a ese riesgo y decidir si aprobarla. Y que todo eso se pueda usar desde una herramienta.", "ind": "Recorrer los tres números y después los tres pasos del objetivo."}, {"n": 3, "speaker": "Lucas Kim", "secs": 35, "words": 57, "text": "Partimos de 2,26 millones de préstamos y nos quedamos con 618 mil: los de 36 meses, de 2007 a 2015, que ya habían terminado. Sacamos todas las columnas que se conocen recién después de dar el préstamo, para no hacer trampa con información del futuro. Y separamos train y test por fecha antes de mirar los datos.", "ind": "Recorrer el embudo y el split; no detenerse en las tarjetas."}, {"n": 4, "speaker": "Lucas Kim", "secs": 35, "words": 62, "text": "Probamos tres modelos y elegimos LightGBM, validando año por año. En test, con préstamos que el modelo nunca vio, saca un AUC de 0,704, que mide qué tan bien ordena el riesgo: 0,5 es azar y 1 es perfecto. La nota que usaba Lending Club llega a 0,683 en los mismos préstamos: ordenamos mejor el riesgo con los datos de la solicitud.", "ind": "Señalar la fila de LightGBM y la de Lending Club."}, {"n": 5, "speaker": "Gianluca Giannine Lizarraga", "secs": 50, "words": 92, "text": "En esta entrega convertimos el modelo en un sistema. Así se evalúa una solicitud: con los datos de la persona, el modelo da una PD; la calibramos; la ubicamos en una de siete bandas de riesgo; buscamos la severidad de esa banda, o sea, cuánto se pierde si no paga; y la prima es la PD por la severidad.\n\nEn el ejemplo, la PD calibrada es 12,5 por ciento, cae en la banda 2, donde se pierde el 48 por ciento del monto, y la prima da 6 por ciento. Se aprueba.", "ind": "Recorrer las seis tarjetas de izquierda a derecha."}, {"n": 6, "speaker": "Gianluca Giannine Lizarraga", "secs": 40, "words": 72, "text": "En la entrega anterior nos marcaron que la PD quedaba un punto abajo del default real. Lo corregimos con un ajuste de intercepto, como nos sugirieron: le sumamos una constante a todas las PD, estimada con el último año de validación, sin tocar test.\n\nResultado: la PD media pasa de 13,9 a 15 por ciento, contra 14,8 real. Y el AUC no cambia, porque el orden de los préstamos es el mismo.", "ind": "Señalar los puntos azules sobre la diagonal y los tres números."}, {"n": 7, "speaker": "Gianluca Giannine Lizarraga", "secs": 45, "words": 84, "text": "Antes usábamos una severidad única de 51,7 por ciento. Pero los préstamos más riesgosos dejan de pagar antes y pierden más: la severidad va de 46 por ciento en la banda 1 a 60 en la 7.\n\nCon la PD calibrada y la severidad por banda, la prima cubre el 99 por ciento de lo que realmente se perdió en test, y anda bien en todas las bandas. Antes cubríamos el 92, cobrando de más a los seguros y de menos a los riesgosos.", "ind": "Comparar las barras naranjas con las azules en las bandas altas."}, {"n": 8, "speaker": "Gianluca Giannine Lizarraga", "secs": 45, "words": 91, "text": "Con las bandas definimos una regla: se aprueban las bandas 1 a 4, la 5 va a revisión de un analista y la 6 y la 7 se rechazan. Así se aprueba el 94 por ciento de los préstamos y la pérdida de los aprobados baja de 7,8 a 6,9 por ciento del monto.\n\nSi Lending Club hubiera dejado afuera la misma cantidad usando su nota, la pérdida sería 7 por ciento: nuestras bandas eligen un poco mejor. La mejora es moderada porque son préstamos que Lending Club ya había aprobado.", "ind": "Primero los tres grupos de la izquierda, después las barras."}, {"n": 9, "speaker": "Timoteo Harrington", "secs": 45, "words": 80, "text": "Así está desplegado. El analista usa una página web hecha en Streamlit. La página no carga el modelo: le manda la solicitud a una API hecha con FastAPI, publicada en Render, que valida los datos y responde. La API arma las variables, calibra y calcula la prima con el modelo que guardamos en la entrega anterior.\n\nSi un dato está mal, la API devuelve un error claro con el campo y el motivo. Y todo está probado con 38 tests.", "ind": "Seguir las flechas de izquierda a derecha."}, {"n": 10, "speaker": "Timoteo Harrington", "secs": 150, "words": 90, "text": "Vamos a la demo. Cargamos un perfil de riesgo medio y lo evaluamos: se aprueba, cae en la banda 2 y la prima es 6 por ciento, unos 900 dólares sobre 15 mil. Abajo la página explica cómo se lee.\n\nAhora un perfil de alto riesgo: poco ingreso, mucha deuda y muchas consultas al buró. Se rechaza: banda 7, más de 60 por ciento de probabilidad de no pagar.\n\nY acá se ve el pedido y la respuesta de la API, que es lo que podría usar cualquier otro sistema.", "ind": "Pasar a la interfaz en vivo. Abrir /salud de la API unos minutos antes, porque en el plan gratis tarda en despertar. Si falla internet, usar esta captura."}, {"n": 11, "speaker": "Timoteo Harrington", "secs": 40, "words": 67, "text": "Para cerrar: ordenamos el riesgo mejor que Lending Club, la prima cubre la pérdida real y el sistema está desplegado y se puede usar.\n\nQuedan límites: la prima es para toda la vida del préstamo y no una tasa anual, solo vemos préstamos que Lending Club aprobó, y si cambia el ciclo económico hay que recalibrar. El paso siguiente sería monitorear el modelo con préstamos nuevos. Gracias.", "ind": "Cerrar mirando al público."}];</script>
 <script>
 (() => {
   const deck = document.getElementById('deck');
   const slides = [...deck.querySelectorAll('.slide')];
   const N = slides.length;
-  const count = document.getElementById('count'), notes = document.getElementById('notes'), grid = document.getElementById('grid');
-  const bNotes = document.getElementById('bNotes'), bGrid = document.getElementById('bGrid'), bFull = document.getElementById('bFull');
+  const count = document.getElementById('count'), grid = document.getElementById('grid');
+  const bGrid = document.getElementById('bGrid'), bFull = document.getElementById('bFull');
   let cur = 0, typed = '';
   function fit() {
-    const W = innerWidth - 24, H = (notes.hidden ? innerHeight - 54 : innerHeight - 214) - 16;
+    const W = innerWidth - 24, H = innerHeight - 54 - 16;
     deck.style.setProperty('--scale', Math.min(W / 1600, H / 900));
   }
   addEventListener('resize', fit);
   function esc(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
-  function renderNotes() {
-    const n = window.NOTES[cur];
-    document.getElementById('ntSpk').textContent = n.speaker;
-    document.getElementById('ntTime').textContent = '≈ ' + n.secs + ' s · ' + n.words + ' palabras';
-    document.getElementById('ntText').innerHTML = esc(n.text).replace(/\[(.*?)\]/g, '<i>($1)</i>').replace(/\n\n/g, '<br><br>');
-    document.getElementById('ntInd').textContent = 'Para exponer: ' + n.ind;
-  }
   function show(i) {
     i = Math.max(0, Math.min(N - 1, i));
     slides[cur].classList.remove('on'); slides[cur].setAttribute('aria-hidden', 'true');
@@ -317,12 +304,6 @@ body.notes-on .stage{bottom:214px}
     s.querySelectorAll('[data-a]').forEach(el => { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; });
     count.textContent = (cur + 1) + ' / ' + N;
     try { history.replaceState(null, '', '#' + (cur + 1)); } catch (e) {}
-    renderNotes();
-  }
-  function toggleNotes(force) {
-    const on = force ?? notes.hidden;
-    notes.hidden = !on; bNotes.setAttribute('aria-pressed', on);
-    document.body.classList.toggle('notes-on', on); fit();
   }
   function buildGrid() {
     grid.innerHTML = '';
@@ -354,7 +335,6 @@ body.notes-on .stage{bottom:214px}
   addEventListener('fullscreenchange', fit);
   document.getElementById('bPrev').onclick = () => show(cur - 1);
   document.getElementById('bNext').onclick = () => show(cur + 1);
-  bNotes.onclick = () => toggleNotes();
   bGrid.onclick = () => toggleGrid();
   bFull.onclick = full;
   addEventListener('keydown', e => {
@@ -368,7 +348,6 @@ body.notes-on .stage{bottom:214px}
     else if (['ArrowLeft', 'PageUp'].includes(k)) { e.preventDefault(); show(cur - 1); }
     else if (k === 'Home') show(0);
     else if (k === 'End') show(N - 1);
-    else if (k === 'n' || k === 'N') toggleNotes();
     else if (k === 'o' || k === 'O') toggleGrid();
     else if (k === 'f' || k === 'F') full();
   });
