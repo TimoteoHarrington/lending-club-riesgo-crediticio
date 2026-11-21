@@ -377,6 +377,66 @@ with tab_modelo:
         st.caption("La prima cubre el 99% de la pérdida real de test. Con la regla de decisión, la pérdida de los "
                    "préstamos aprobados baja de 7,8% a 6,9% del monto.")
 
+    st.markdown("#### Lo técnico, explicado simple")
+    st.markdown("**Qué variables mira más el modelo.** Las 10 que más pesan en sus decisiones (importancia por ganancia "
+                "de LightGBM, agrupando las categorías). Muestra cuánto las usa, no que causen el default.")
+    VARIABLES = [
+        ("Puntaje FICO", 18.9, "Más puntaje, menos riesgo"),
+        ("Cuentas abiertas en los últimos 24 meses", 8.0, "Muchas aperturas recientes, más riesgo"),
+        ("Monto pedido sobre ingreso", 7.0, "Pedir mucho respecto de lo que gana, más riesgo"),
+        ("Deudas sobre ingreso (DTI)", 5.7, "Más endeudado, más riesgo"),
+        ("Ingreso anual", 5.5, "Más ingreso, menos riesgo"),
+        ("Destino del préstamo", 3.7, "Pequeño negocio es el más riesgoso; tarjetas, de los menos"),
+        ("Disponible en tarjetas", 3.5, "Más margen disponible, menos riesgo"),
+        ("Cuentas abiertas en los últimos 12 meses", 3.4, "Igual que las de 24 meses: más aperturas, más riesgo"),
+        ("Límite total de crédito", 2.7, "Más crédito otorgado por otros, menos riesgo"),
+        ("Límite total en tarjetas", 2.5, "Más límite, menos riesgo"),
+    ]
+    maximo = VARIABLES[0][1]
+    filas = "".join(
+        f"<div style='display:grid;grid-template-columns:minmax(150px,1.3fr) 2fr minmax(160px,1.6fr);gap:12px;"
+        f"align-items:center;padding:5px 0;border-bottom:1px solid #EEF2F7'>"
+        f"<span style='color:#172B4D;font-size:14px'>{n}</span>"
+        f"<span style='display:flex;align-items:center;gap:8px'><span style='display:inline-block;height:14px;"
+        f"border-radius:3px;background:#287AE6;width:{v / maximo * 100:.0f}%'></span>"
+        f"<span style='font-size:13px;color:#5C6F87'>{str(v).replace('.', ',')}%</span></span>"
+        f"<span style='color:#5C6F87;font-size:13px'>{d}</span></div>"
+        for n, v, d in VARIABLES)
+    st.markdown(f"<div style='margin:6px 0 18px'>{filas}</div>", unsafe_allow_html=True)
+    st.caption("Las 10 juntas explican el 61% de lo que usa el modelo; el resto se reparte entre las otras 44 variables.")
+
+    CONCEPTOS = [
+        ("Los datos",
+         "Partimos de 2,26 millones de préstamos y quedaron **618 mil**: a 36 meses, de 2007 a 2015 y ya terminados "
+         "(para saber si se pagaron). Usamos **54 variables**, todas conocidas al momento de pedir el préstamo."),
+        ("Sin hacer trampa (leakage)",
+         "Sacamos 38 columnas que solo existen después de dar el préstamo, como pagos o recuperos. Si el modelo las "
+         "viera, parecería buenísimo pero no serviría para una solicitud nueva. También sacamos la nota y la tasa "
+         "de Lending Club, para no copiar su decisión."),
+        ("Cómo lo validamos",
+         "Separamos por fecha: el modelo aprende con préstamos hasta agosto de 2015 y se lo prueba con los de "
+         "septiembre a diciembre de 2015 (**test**), que nunca vio. Para elegir entre modelos simulamos lo mismo "
+         "tres veces: aprender con los años anteriores y probar con 2013, 2014 y 2015."),
+        ("Por qué LightGBM",
+         "Comparamos tres modelos. La **regresión logística** suma variables con pesos; el **Random Forest** promedia "
+         "muchos árboles de decisión; **LightGBM** encadena árboles chicos donde cada uno corrige al anterior. "
+         "LightGBM ganó los tres años (AUC de validación 0,684 contra cerca de 0,673 de los otros dos)."),
+        ("Hiperparámetros",
+         "Son las perillas que se fijan antes de entrenar. Probamos 11 combinaciones y quedó LightGBM con **1.000 "
+         "árboles de 15 hojas** y aprendizaje lento (learning rate 0,02). Entre combinaciones las diferencias fueron "
+         "de milésimas: pesa más el tipo de modelo que la perilla."),
+        ("Calibración y severidad",
+         "El modelo ordenaba bien pero quedaba un punto corto en el nivel. Con un **ajuste de intercepto** (+0,098 en "
+         "log-odds) la PD media pasó de 13,9% a 15,0%, contra 14,8% real. La **severidad** se calculó por banda: "
+         "va de 46% en la banda 1 a 60% en la 7, porque los más riesgosos dejan de pagar antes."),
+    ]
+    for i in range(0, len(CONCEPTOS), 3):
+        cols = st.columns(3)
+        for col, (titulo, texto) in zip(cols, CONCEPTOS[i:i + 3]):
+            with col.container(border=True):
+                st.markdown(f"**{titulo}**")
+                st.markdown(f"<span style='font-size:14px;color:#334663'>{texto}</span>", unsafe_allow_html=True)
+
     st.markdown("#### Las 7 bandas de riesgo")
     bandas = pd.DataFrame(modelo["bandas"])
     vista = pd.DataFrame({
