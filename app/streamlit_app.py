@@ -166,7 +166,7 @@ with tab_pres:
     st.components.v1.html(deck, height=720, scrolling=False)
     c1, c2 = st.columns([3, 1])
     c1.caption("Hacé clic en la presentación y usá las flechas (o clic a los lados) para avanzar. "
-               "N muestra el guion, O el índice y F la pantalla completa.")
+               "O muestra el índice de slides.")
     c2.download_button("Descargar presentación (HTML)", deck.encode("utf-8"), "presentacion_lending_club_e04.html",
                        "text/html", use_container_width=True)
 
